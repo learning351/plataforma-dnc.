@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detección de Necesidades de Capacitación (DNC) - Soft Skills</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+      // Alias robusto para entornos UMD
+      window.jsPDF = window.jspdf && window.jspdf.jsPDF;
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            padding: 2rem;
+            transition: all 0.3s ease-in-out;
+        }
+        #submit-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: #9ca3af; /* gray-400 */
+        }
+        #submit-button:disabled:hover {
+            background-color: #9ca3af; /* gray-400 */
+        }
+        .loader, .spinner {
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            width: 40px;
+            height: 40px;
+        }
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #fff;
+            width: 20px;
+            height: 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .progress-bar {
+            transition: width 0.3s ease-in-out;
+        }
+        .incomplete-card {
+            border: 1px solid #d1d5db; /* gray-300 */
+        }
+        .completed-card {
+             border: 1px solid #22c55e; /* green-500 */
+        }
+        .modal-overlay {
+            transition: opacity 0.3s ease-in-out;
+        }
+        .modal-content {
+            transition: transform 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-5xl mx-auto">
+        <div class="card">
+            <header class="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+                <div class="text-center sm:text-left">
+                    <h1 class="text-3xl font-bold text-gray-900">Plataforma DNC - Soft Skills</h1>
+                    <p class="mt-2 text-gray-600">Herramienta para la Detección de Necesidades de Capacitación.</p>
+                </div>
+                <img src="https://intranet.learning-campus.siemens.com/_images/newton/siemens-logo-newton.png" alt="Logo de Siemens" class="h-10 w-auto" onerror="this.onerror=null;this.src='https://placehold.co/200x50/009999/FFFFFF?text=Siemens';">
+            </header>
+
+            <!-- Estado de Carga -->
+            <section id="loading-state" class="text-center py-10">
+                <div class="loader mx-auto"></div>
+                <p class="mt-4 text-gray-600">Cargando datos de la plataforma...</p>
+                 <p id="loading-error" class="text-red-500 mt-2 font-medium hidden"></p>
+            </section>
+
+            <!-- Sección de Ingreso del Supervisor (inicialmente oculta) -->
+            <section id="supervisor-login" class="hidden mb-8">
+                
+                <!-- Panel de Instrucciones -->
+                <div class="bg-blue-50 border-l-4 border-blue-500 text-blue-800 p-4 rounded-r-lg mb-8" role="alert">
+                    <h3 class="font-bold text-lg mb-2">Siemens - Proceso DNC para el año 2026</h3>
+                    <p class="mb-2 text-sm">
+                        Bienvenido/a al proceso DNC, una herramienta clave para potenciar a nuestros equipos. Su objetivo es identificar las competencias que ayudarán a cada colaborador a cerrar brechas y alcanzar su máximo potencial.
+                    </p>
+                    <p class="mb-2 text-sm">
+                        La selección de cursos que realices es clave para el plan de desarrollo de este año. Por ello, es fundamental que te reúnas con cada miembro de tu equipo. Antes de la reunión, te recomendamos invitar a tu colaborador a realizar una autoevaluación y reflexionar sobre las áreas en las que le gustaría desarrollarse.
+                    </p>
+                     <p class="font-semibold text-sm">
+                        Tu rol en este diálogo es fundamental para el éxito del programa.
+                    </p>
+                </div>
+
+                <h2 class="text-xl font-semibold mb-4 text-center border-t pt-8">Paso 1: Identificación del Supervisor</h2>
+                <div class="text-center mb-6">
+                     <button onclick="showCoursesModal()" class="bg-white text-blue-600 font-semibold py-2 px-4 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
+                        Ver Catálogo de Cursos
+                     </button>
+                </div>
+                <div class="flex flex-col md:flex-row gap-4 items-center justify-center">
+                    <input type="text" id="supervisor-rut" placeholder="Ingrese su RUT (ej: 12.345.678-9)..." class="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" oninput="formatAndValidateRut(this)">
+                    <button id="search-button" onclick="findEmployees()" class="w-full md:w-auto bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-2">
+                        <span id="search-button-text">Buscar mi equipo</span>
+                    </button>
+                </div>
+                 <div id="rut-validation-message" class="text-red-500 text-center text-sm mt-2 font-medium"></div>
+                <div id="error-message" class="text-red-500 text-center mt-4 font-medium"></div>
+            </section>
+
+            <!-- Sección para Asignar Cursos (inicialmente oculta) -->
+            <section id="employee-list-section" class="hidden">
+                <div class="mb-4">
+                    <button onclick="goBackToLogin()" class="text-sm text-blue-600 hover:underline">&larr; Cambiar de supervisor</button>
+                </div>
+                <h2 class="text-xl font-semibold mb-2 text-center">Paso 2: Asignar Cursos de Soft Skills</h2>
+                <p id="supervisor-info" class="text-center text-gray-600 mb-6"></p>
+                
+                <!-- Barra de Progreso -->
+                <div id="progress-container" class="mb-6">
+                    <div class="flex justify-between mb-1">
+                        <span class="text-base font-medium text-blue-700">Progreso de la Evaluación</span>
+                        <span id="progress-text" class="text-sm font-medium text-blue-700">0 / 0 Completados</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="mt-6 border-t pt-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 text-left">Colaboradores bajo tu supervisión:</h3>
+                    <div id="employee-list" class="space-y-6">
+                        <!-- Los empleados se cargarán aquí dinámicamente -->
+                    </div>
+                </div>
+
+                <!-- Preferencias Generales de Capacitación -->
+                <div class="mt-8 border-t pt-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Preferencias Generales de Capacitación</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-4 rounded-lg">
+                        <!-- Modalidad -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Modalidad de Entrega</label>
+                            <div class="flex flex-col gap-2">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" class="form-radio" name="modalidad" value="Presencial" onchange="handleModalidadChange(this.value); saveProgress();">
+                                    <span class="ml-2">Presencial</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" class="form-radio" name="modalidad" value="Virtual" onchange="handleModalidadChange(this.value); saveProgress();">
+                                    <span class="ml-2">Virtual</span>
+                                </label>
+                            </div>
+                        </div>
+                        <!-- Sincronía (condicional) -->
+                        <div id="sincronia-section" class="hidden">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Formato Virtual</label>
+                            <div class="flex flex-col gap-2">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" class="form-radio" name="sincronia" value="Sincrónica" onchange="saveProgress()">
+                                    <span class="ml-2">Sincrónica (en vivo)</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" class="form-radio" name="sincronia" value="Asincrónica" onchange="saveProgress()">
+                                    <span class="ml-2">Asincrónica (a tu ritmo)</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" class="form-radio" name="sincronia" value="Blended" onchange="saveProgress()">
+                                    <span class="ml-2">Blended (mixto)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Campo de Observaciones Generales -->
+                <div class="mt-8 border-t pt-6">
+                    <label for="general-observations" class="block text-lg font-semibold text-gray-800 mb-2">Observaciones Generales (Opcional)</label>
+                    <p class="text-sm text-gray-600 mb-2">Use este espacio si necesita sugerir un curso que no está en la lista o añadir comentarios generales sobre el proceso de DNC de su equipo.</p>
+                    <textarea id="general-observations" class="w-full p-2 border border-gray-300 rounded-md text-sm" rows="3" placeholder="Escriba aquí sus comentarios..." oninput="saveProgress()"></textarea>
+                </div>
+
+
+                <div class="mt-8 text-center">
+                    <button id="submit-button" onclick="showConfirmationModal()" class="w-full md:w-1/2 bg-green-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-700 transition-colors text-lg shadow-lg">
+                        <span id="button-text">Finalizar y Enviar Datos</span>
+                        <div id="button-loader" class="hidden mx-auto" style="width: 20px; height: 20px; border-width: 2px;"></div>
+                    </button>
+                </div>
+            </section>
+            
+             <!-- Vista de Éxito -->
+            <section id="success-view" class="hidden text-center py-10">
+                 <svg class="mx-auto h-16 w-16 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h2 class="mt-4 text-2xl font-bold text-gray-900">¡Evaluación Enviada!</h2>
+                <p id="success-message" class="mt-2 text-gray-600">Muchas gracias por su participación. Sus respuestas han sido guardadas correctamente.</p>
+                <p class="mt-4 text-sm text-gray-500 max-w-xl mx-auto">El equipo de Learning & Growth consolidará los resultados de toda la organización. Los planes de capacitación y el calendario se comunicarán oficialmente durante el primer trimestre de 2026.</p>
+                <div class="mt-6 flex flex-col items-center gap-4">
+                     <button onclick="goBackToLogin(true)" class="w-full md:w-1/2 bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-gray-700 transition-colors shadow-md">
+                        Evaluar otro equipo
+                     </button>
+                </div>
+            </section>
+        </div>
+        <footer class="text-center mt-8 text-gray-500 text-xs border-t pt-4">
+            <p class="font-semibold">Elaborado por: David Linares</p>
+            <p>GP Strategies | Learning Administrator</p>
+            <p>External Service Provider at Siemens AG</p>
+            <p>Learning & Growth Sur América</p>
+            <p class="mt-4 text-gray-400">&copy; 2025 Herramienta DNC. Todos los derechos reservados.</p>
+        </footer>
+    </div>
+    
+    <!-- Indicador de Guardado -->
+    <div id="save-toast" class="fixed bottom-5 right-5 bg-green-600 text-white py-2 px-4 rounded-lg shadow-lg opacity-0 transition-opacity duration-300">
+        <span class="font-semibold">✓ Progreso guardado</span>
+    </div>
+
+    <!-- Modal de Catálogo de Cursos -->
+    <div id="courses-modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0">
+        <div class="modal-content bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl transform scale-95 max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Catálogo de Cursos de Soft Skills</h3>
+                <button onclick="hideCoursesModal()" class="text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
+            </div>
+            <div class="mb-4">
+                <input type="text" id="course-search-input" placeholder="Buscar curso, competencia o descripción..." class="w-full p-2 border border-gray-300 rounded-md" oninput="filterCourses()">
+            </div>
+            <div id="courses-modal-list" class="overflow-y-auto pr-4">
+                <!-- El contenido se cargará dinámicamente -->
+            </div>
+             <div class="mt-6 flex justify-end gap-4">
+                <button onclick="exportCoursesPDF()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Exportar a PDF</button>
+                <button onclick="hideCoursesModal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Cerrar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Confirmación -->
+    <div id="confirmation-modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0">
+        <div class="modal-content bg-white rounded-lg shadow-xl p-6 w-full max-w-md transform scale-95">
+            <h3 class="text-xl font-bold mb-4">Confirmar Envío</h3>
+            <p class="text-gray-600 mb-6">¿Está seguro de que desea enviar las evaluaciones? Esta acción no se puede deshacer.</p>
+            <div class="flex justify-end gap-4">
+                <button onclick="hideConfirmationModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Cancelar</button>
+                <button onclick="sendDataToSheet()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Confirmar y Enviar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Restaurar Progreso -->
+    <div id="restore-modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0">
+        <div class="modal-content bg-white rounded-lg shadow-xl p-6 w-full max-w-md transform scale-95">
+            <h3 class="text-xl font-bold mb-4">Progreso Encontrado</h3>
+            <p class="text-gray-600 mb-6">Hemos detectado una sesión no finalizada para este equipo. ¿Desea restaurar su progreso anterior?</p>
+            <div class="flex justify-end gap-4">
+                <button onclick="startNewSession()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Empezar de Nuevo</button>
+                <button onclick="restoreProgress()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Sí, Restaurar</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- CONFIGURACIÓN ---
+        const googleAppScriptUrl = "https://script.google.com/macros/s/AKfycby_jtDnxo7h12E8JmkVJsKSV_AoEFVpRNKemZ3azfyOiAuG9ONNTJVVw2uQwXKwwWF-Rw/exec";
+        
+        // --- LÓGICA DE LA APLICACIÓN ---
+        let supervisorGlobal = null;
+        let allEmployees = [];
+        let allCourses = [];
+        let saveToastTimeout;
+
+        document.addEventListener('DOMContentLoaded', fetchInitialData);
+
+        function normalizeCourses(input) {
+            try {
+                const raw = typeof input === 'string' ? JSON.parse(input) : input;
+                const arr = Array.isArray(raw)
+                ? raw
+                : (raw && typeof raw === 'object')
+                    ? Object.values(raw)
+                    : [];
+
+                return arr
+                .map((c) => {
+                    if (typeof c === 'string') {
+                    return { nombre: c, competencia: 'General', descripcion: '' };
+                    }
+                    return {
+                    nombre: c.nombre || c.name || c.curso || c.titulo || '',
+                    competencia: c.competencia || c.skill || c.categoria || 'General',
+                    descripcion: c.descripcion || c.description || c.detalle || ''
+                    };
+                })
+                .filter((c) => c && c.nombre);
+            } catch (e) {
+                console.warn('No se pudo parsear `courses`:', e);
+                return [];
+            }
+        }
+
+        function fetchInitialData() {
+            if (googleAppScriptUrl.includes('¡Pega aquí')) {
+                const loadingError = document.getElementById('loading-error');
+                loadingError.textContent = 'Error de Configuración: La URL del script no ha sido actualizada.';
+                loadingError.classList.remove('hidden');
+                document.getElementById('loading-state').querySelector('p').classList.add('hidden');
+                document.getElementById('loading-state').querySelector('.loader').classList.add('hidden');
+                return;
+            }
+
+            fetch(googleAppScriptUrl)
+                .then((response) => (response.ok ? response.json() : Promise.reject(`Error de red: ${response.status}`)))
+                .then((data) => {
+                if (data.status === 'error') throw new Error(data.message || 'Error remoto');
+
+                allEmployees = Array.isArray(data.employees) ? data.employees : [];
+                allCourses = normalizeCourses(data.courses);
+
+                if (!allCourses.length) {
+                    console.warn('Catálogo de cursos vacío o mal formateado. Revisa el backend.');
+                }
+
+                document.getElementById('loading-state').classList.add('hidden');
+                document.getElementById('supervisor-login').classList.remove('hidden');
+                })
+                .catch((error) => {
+                console.error('Error al cargar datos iniciales:', error);
+                const loadingError = document.getElementById('loading-error');
+                const msg = error && error.message ? error.message : String(error);
+                loadingError.textContent = `Error al conectar: ${msg}. Verifique la URL y los permisos del script.`;
+                loadingError.classList.remove('hidden');
+                });
+        }
+
+        function findEmployees() {
+            const rutInputWithDots = document.getElementById('supervisor-rut').value;
+            const rutInputClean = rutInputWithDots.replace(/\./g, '');
+            const rutValidationMsg = document.getElementById('rut-validation-message');
+            
+            if (!checkRut(rutInputClean)) {
+                rutValidationMsg.textContent = 'El RUT ingresado no es válido.';
+                return;
+            }
+            rutValidationMsg.textContent = '';
+            
+            const searchButton = document.getElementById('search-button');
+            const searchButtonText = document.getElementById('search-button-text');
+            const originalButtonText = searchButtonText.textContent;
+            searchButtonText.textContent = 'Buscando...';
+            searchButton.disabled = true;
+            searchButton.insertAdjacentHTML('beforeend', '<div class="spinner"></div>');
+
+            setTimeout(() => {
+                const supervisor = allEmployees.find(e => e.RUT === rutInputClean);
+                const errorMessage = document.getElementById('error-message');
+                errorMessage.innerHTML = '';
+
+                if (!supervisor) {
+                    errorMessage.innerHTML = 'RUT no encontrado. Por favor, verifique que esté bien escrito o contacte a Learning Siemens al correo <a href="mailto:david.linares.etx@siemens.com" class="text-blue-600 underline">david.linares.etx@siemens.com</a>.';
+                } else {
+                    supervisorGlobal = supervisor;
+                    const supervisedEmployees = allEmployees.filter(e => e['Rut Evaluador'] === supervisor.RUT && e.RUT !== supervisor.RUT);
+
+                    if (supervisedEmployees.length === 0) {
+                        errorMessage.textContent = 'No se encontraron colaboradores a su cargo.';
+                    } else {
+                        const savedProgress = localStorage.getItem('dnc-progress-' + supervisor.RUT);
+                        if (savedProgress) {
+                            showRestoreModal();
+                        } else {
+                            startNewSession(true);
+                        }
+                    }
+                }
+                
+                searchButtonText.textContent = originalButtonText;
+                searchButton.disabled = false;
+                searchButton.querySelector('.spinner')?.remove();
+            }, 250);
+        }
+        
+        function formatAndValidateRut(input) {
+            let rut = input.value.replace(/[^0-9kK]/g, '');
+            const rutValidationMsg = document.getElementById('rut-validation-message');
+            rutValidationMsg.textContent = '';
+
+            let result = '';
+            let rutCleanForValidation = '';
+
+            if (rut.length > 1) {
+                const dv = rut.slice(-1);
+                const body = rut.slice(0, -1);
+                rutCleanForValidation = body + '-' + dv;
+                result = new Intl.NumberFormat('es-CL').format(body) + '-' + dv.toUpperCase();
+                if (!checkRut(rutCleanForValidation)) {
+                    rutValidationMsg.textContent = 'El RUT ingresado no es válido.';
+                }
+            } else {
+                result = rut;
+            }
+            input.value = result;
+        }
+
+        function checkRut(rut) {
+            rut = rut.replace(/\./g, '').toUpperCase();
+            if (!/^[0-9]+-[0-9kK]{1}$/.test(rut)) return false;
+            const [body, dv] = rut.split('-');
+            let sum = 0;
+            let multiple = 2;
+            for (let i = body.length - 1; i >= 0; i--) {
+                sum += multiple * body.charAt(i);
+                multiple = multiple < 7 ? multiple + 1 : 2;
+            }
+            const dvExpected = 11 - (sum % 11);
+            const dvFinal = (dvExpected == 11) ? '0' : (dvExpected == 10) ? 'K' : dvExpected.toString();
+            return dvFinal == dv;
+        }
+
+
+        function displayEmployees(employees) {
+            const container = document.getElementById('employee-list');
+            container.innerHTML = '';
+            
+            employees.forEach(employee => {
+                const employeeCard = document.createElement('div');
+                employeeCard.className = 'p-5 bg-gray-50 border rounded-lg incomplete-card';
+                employeeCard.setAttribute('data-rut', employee.RUT);
+                employeeCard.setAttribute('data-nombre', employee['Nombre completo']);
+                employeeCard.setAttribute('data-email', employee.Email);
+                
+                const courseOptions = `<option value="">-- Seleccionar curso --</option>` + 
+                                      allCourses.map(courseObj => `<option value="${courseObj.nombre}" title="${courseObj.descripcion}">${courseObj.nombre}</option>`).join('');
+
+                employeeCard.innerHTML = `
+                    <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                        <div class="flex-shrink-0 lg:w-1/3">
+                            <h3 class="text-lg font-bold text-gray-800">${employee['Nombre completo']}</h3>
+                            <p class="text-sm text-gray-500">${employee.Cargo}</p>
+                        </div>
+                        <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Prioridad 1</label>
+                                <select class="course-select p-2 border border-gray-300 rounded-md w-full">${courseOptions}</select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Prioridad 2</label>
+                                <select class="course-select p-2 border border-gray-300 rounded-md w-full">${courseOptions}</select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Prioridad 3</label>
+                                <select class="course-select p-2 border border-gray-300 rounded-md w-full">${courseOptions}</select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Justificación (Opcional):</label>
+                        <textarea class="justification-text w-full p-2 border border-gray-300 rounded-md text-sm" rows="2" placeholder="Breve razón de la selección de cursos..."></textarea>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="checkbox" class="no-courses-checkbox form-checkbox h-5 w-5 text-blue-600 rounded">
+                            <span class="ml-2 text-sm text-gray-700">Marcar si este colaborador no requiere cursos en este ciclo.</span>
+                        </label>
+                    </div>`;
+                container.appendChild(employeeCard);
+            });
+            
+            container.querySelectorAll('.p-5').forEach(card => {
+                const selects = card.querySelectorAll('.course-select');
+                const justification = card.querySelector('.justification-text');
+                const noCoursesCheckbox = card.querySelector('.no-courses-checkbox');
+
+                const handleInteraction = () => {
+                    const selectedValues = Array.from(selects).map(s => s.value).filter(Boolean);
+                    selects.forEach(s => {
+                        Array.from(s.options).forEach(option => {
+                            option.disabled = selectedValues.includes(option.value) && s.value !== option.value;
+                        });
+                    });
+                    updateProgress();
+                    saveProgress();
+                };
+
+                selects.forEach(select => select.addEventListener('change', handleInteraction));
+                justification.addEventListener('input', saveProgress);
+
+                noCoursesCheckbox.addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    selects.forEach(s => {
+                        if (isChecked) {
+                            s.value = '';
+                            s.disabled = true;
+                        } else {
+                            s.disabled = false;
+                        }
+                    });
+                    handleInteraction();
+                });
+            });
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const allCards = document.querySelectorAll('#employee-list > div');
+            const totalEmployees = allCards.length;
+            let completedEmployees = 0;
+
+            allCards.forEach(card => {
+                const selects = card.querySelectorAll('.course-select');
+                const noCoursesCheckbox = card.querySelector('.no-courses-checkbox');
+                
+                const isComplete = Array.from(selects).some(s => s.value !== "") || noCoursesCheckbox.checked;
+
+                if (isComplete) {
+                    completedEmployees++;
+                    card.classList.remove('incomplete-card');
+                    card.classList.add('completed-card');
+                } else {
+                    card.classList.add('incomplete-card');
+                    card.classList.remove('completed-card');
+                }
+            });
+
+            const percentage = totalEmployees > 0 ? (completedEmployees / totalEmployees) * 100 : 0;
+            
+            document.getElementById('progress-text').textContent = `${completedEmployees} / ${totalEmployees} Completados`;
+            document.getElementById('progress-bar').style.width = `${percentage}%`;
+
+            const submitButton = document.getElementById('submit-button');
+            if (completedEmployees === totalEmployees && totalEmployees > 0) {
+                submitButton.disabled = false;
+                submitButton.title = "Todo listo para enviar.";
+            } else {
+                submitButton.disabled = true;
+                submitButton.title = "Por favor, evalúe a cada colaborador (asignando cursos o marcando que no requiere) para continuar.";
+            }
+        }
+
+        function goBackToLogin(fromSuccess = false) {
+            document.getElementById('employee-list-section').classList.add('hidden');
+            document.getElementById('supervisor-login').classList.remove('hidden');
+            if (fromSuccess) {
+                 document.getElementById('success-view').classList.add('hidden');
+            }
+            document.getElementById('supervisor-rut').value = '';
+            document.getElementById('error-message').textContent = '';
+            supervisorGlobal = null;
+        }
+        
+        function showConfirmationModal() {
+            const modal = document.getElementById('confirmation-modal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('.modal-content').classList.remove('scale-95');
+            }, 10);
+        }
+
+        function hideConfirmationModal(isRestore = false) {
+            const modalId = isRestore ? 'restore-modal' : 'confirmation-modal';
+            const modal = document.getElementById(modalId);
+            modal.classList.add('opacity-0');
+            modal.querySelector('.modal-content').classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+        
+        function sendDataToSheet() {
+            hideConfirmationModal();
+            const button = document.getElementById('submit-button');
+            const successView = document.getElementById('success-view');
+
+            button.disabled = true;
+            button.innerHTML = '<div class="spinner mx-auto"></div>';
+            
+            const evaluations = [];
+            document.querySelectorAll('#employee-list > div').forEach(card => {
+                const selects = card.querySelectorAll('.course-select');
+                const justification = card.querySelector('.justification-text').value;
+                const noCourses = card.querySelector('.no-courses-checkbox').checked;
+                evaluations.push({
+                    rut: card.dataset.rut,
+                    nombre: card.dataset.nombre,
+                    email: card.dataset.email,
+                    curso1: selects[0].value,
+                    curso2: selects[1].value,
+                    curso3: selects[2].value,
+                    justificacion: justification,
+                    noCourses: noCourses
+                });
+            });
+            
+            const generalObservations = document.getElementById('general-observations').value;
+            const modalidad = document.querySelector('input[name="modalidad"]:checked')?.value || '';
+            const sincronia = document.querySelector('input[name="sincronia"]:checked')?.value || '';
+
+            const payload = {
+                supervisor: {
+                    rut: supervisorGlobal.RUT,
+                    email: supervisorGlobal.Email,
+                    nombre: supervisorGlobal['Nombre completo'],
+                    observaciones: generalObservations,
+                    modalidad: modalidad,
+                    sincronia: (modalidad === 'Virtual') ? sincronia : ''
+                },
+                evaluaciones: evaluations
+            };
+            
+            lastSubmissionData = payload;
+
+            fetch(googleAppScriptUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.status !== "success") throw new Error(data.message || 'Error desconocido del script.');
+                localStorage.removeItem('dnc-progress-' + supervisorGlobal.RUT);
+                document.getElementById('employee-list-section').classList.add('hidden');
+                successView.classList.remove('hidden');
+            })
+            .catch(error => {
+                console.error('Error enviando datos:', error);
+                alert(`Error al enviar: ${error.message}. Intente de nuevo.`);
+                button.disabled = false;
+                button.innerHTML = '<span>Finalizar y Enviar Datos</span>';
+            });
+        }
+        
+        function generatePDF() {
+            if (!window.jsPDF) {
+                alert("jsPDF no cargó. Revisa el <script> de jsPDF o bloqueadores.");
+                return;
+            }
+            if (!lastSubmissionData) {
+                alert("No hay datos de envío para generar el PDF.");
+                return;
+            }
+
+            const doc = new window.jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(0);
+
+            const today = new Date().toLocaleDateString('es-CL');
+            let y = 20;
+
+            const { supervisor, evaluations } = lastSubmissionData;
+
+            // Encabezado
+            doc.setFontSize(18);
+            doc.text("Resumen DNC - Soft Skills", 105, y, { align: 'center' });
+            y += 10;
+
+            doc.setFontSize(12);
+            doc.text(`Supervisor: ${supervisor.nombre} (RUT: ${supervisor.rut})`, 14, y);
+            doc.text(`Fecha: ${today}`, 196, y, { align: 'right'});
+            y += 10;
+
+            doc.setLineWidth(0.5);
+            doc.line(14, y, 196, y);
+            y += 10;
+
+            // Preferencias generales
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text("Preferencias Generales de Capacitación", 14, y); y += 8;
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            const modalidad = supervisor.modalidad || "No especificado";
+            doc.text(`- Modalidad: ${modalidad}`, 20, y); y += 6;
+            if (modalidad === 'Virtual') {
+                const sincronia = supervisor.sincronia || "No especificado";
+                doc.text(`- Formato Virtual: ${sincronia}`, 20, y); y += 6;
+            }
+            y += 4;
+
+            // Detalle por colaborador
+            const addIfNeeded = (need) => { if (y > need) { doc.addPage(); y = 20; } };
+
+            if (evaluations) {
+                evaluations.forEach(e => {
+                const { nombre, noCourses, curso1, curso2, curso3, justificacion } = e;
+
+                let required = 20;
+                if (justificacion && justificacion.trim()) {
+                    required += (doc.splitTextToSize(justificacion, 170).length * 4) + 2;
+                }
+                [curso1, curso2, curso3].forEach(c => {
+                    if (c) {
+                    const co = allCourses.find(k => k.nombre === c);
+                    if (co && co.descripcion) {
+                        required += (doc.splitTextToSize(co.descripcion, 165).length * 4) + 2;
+                    }
+                    }
+                });
+                addIfNeeded(280 - required);
+
+                doc.setLineWidth(0.2);
+                doc.line(14, y, 196, y); y += 10;
+
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text(`Colaborador: ${nombre}`, 14, y); y += 8;
+
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+
+                if (noCourses) {
+                    doc.text(`- No se asignaron cursos para este ciclo.`, 20, y); y += 6;
+                } else {
+                    [curso1, curso2, curso3].forEach((c, i) => {
+                    if (c) {
+                        doc.setFont(undefined, 'bold');
+                        doc.text(`- Prioridad ${i+1}: ${c}`, 20, y); y += 5;
+                        const co = allCourses.find(k => k.nombre === c);
+                        if (co && co.descripcion) {
+                        doc.setFont(undefined, 'italic');
+                        doc.setTextColor(100);
+                        const d = doc.splitTextToSize(co.descripcion, 165);
+                        doc.text(d, 25, y);
+                        y += (d.length * 4) + 2;
+                        doc.setTextColor(0);
+                        doc.setFont(undefined, 'normal');
+                        }
+                    }
+                    });
+                }
+
+                if (justificacion && justificacion.trim()) {
+                    y += 2;
+                    doc.setFont(undefined, 'bold');
+                    doc.text(`Justificación:`, 20, y); y += 5;
+                    doc.setFont(undefined, 'italic');
+                    const jt = doc.splitTextToSize(justificacion, 170);
+                    doc.text(jt, 25, y);
+                    y += (jt.length * 4) + 2;
+                    doc.setFont(undefined, 'normal');
+                }
+                y += 6;
+                });
+            }
+
+            const general = (supervisor.observaciones || '').trim();
+            if (general) {
+                if (y > 250) { doc.addPage(); y = 20; }
+                doc.setLineWidth(0.5);
+                doc.line(14, y, 196, y); y += 10;
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text("Observaciones Generales", 14, y); y += 8;
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                const gt = doc.splitTextToSize(general, 170);
+                doc.text(gt, 20, y);
+            }
+
+            const safeName = (supervisor.nombre || '').replace(/\s/g, '_');
+            const fileName = `DNC_Resumen_${safeName}_${today}.pdf`;
+            doc.save(fileName);
+        }
+        
+        function handleModalidadChange(value) {
+            const sincroniaSection = document.getElementById('sincronia-section');
+            if (value === 'Virtual') {
+                sincroniaSection.classList.remove('hidden');
+            } else {
+                sincroniaSection.classList.add('hidden');
+                document.querySelectorAll('input[name="sincronia"]').forEach(radio => {
+                    radio.checked = false;
+                });
+            }
+        }
+
+        // --- LÓGICA DE GUARDADO AUTOMÁTICO ---
+        function saveProgress() {
+            if (!supervisorGlobal) return;
+            const progressData = {
+                evaluations: {},
+                generalObservations: document.getElementById('general-observations').value,
+                modalidad: document.querySelector('input[name="modalidad"]:checked')?.value || '',
+                sincronia: document.querySelector('input[name="sincronia"]:checked')?.value || ''
+            };
+            document.querySelectorAll('#employee-list > div').forEach(card => {
+                const rut = card.dataset.rut;
+                const selects = card.querySelectorAll('.course-select');
+                const justificationText = card.querySelector('.justification-text');
+                const noCoursesCheckbox = card.querySelector('.no-courses-checkbox');
+
+                progressData.evaluations[rut] = {
+                    curso1: selects.length > 0 ? selects[0].value : '',
+                    curso2: selects.length > 1 ? selects[1].value : '',
+                    curso3: selects.length > 2 ? selects[2].value : '',
+                    justificacion: justificationText ? justificationText.value : '',
+                    noCourses: noCoursesCheckbox ? noCoursesCheckbox.checked : false
+                };
+            });
+            localStorage.setItem('dnc-progress-' + supervisorGlobal.RUT, JSON.stringify(progressData));
+            showSaveToast();
+        }
+
+        function restoreProgress() {
+            hideConfirmationModal(true);
+            const savedProgress = JSON.parse(localStorage.getItem('dnc-progress-' + supervisorGlobal.RUT));
+            if (!savedProgress) return;
+            
+            startNewSession(true, () => {
+                document.querySelectorAll('#employee-list > div').forEach(card => {
+                    const rut = card.dataset.rut;
+                    const savedEval = savedProgress.evaluations[rut];
+                    if (savedEval) {
+                        const selects = card.querySelectorAll('.course-select');
+                        const noCoursesCheckbox = card.querySelector('.no-courses-checkbox');
+
+                        if (savedEval.noCourses) {
+                            noCoursesCheckbox.checked = true;
+                            selects.forEach(s => s.disabled = true);
+                        } else {
+                            selects[0].value = savedEval.curso1;
+                            selects[1].value = savedEval.curso2;
+                            selects[2].value = savedEval.curso3;
+                        }
+                        card.querySelector('.justification-text').value = savedEval.justificacion;
+                        noCoursesCheckbox.dispatchEvent(new Event('change'));
+                    }
+                });
+                document.getElementById('general-observations').value = savedProgress.generalObservations || '';
+                
+                if (savedProgress.modalidad) {
+                    const modalidadRadio = document.querySelector(`input[name="modalidad"][value="${savedProgress.modalidad}"]`);
+                    modalidadRadio.checked = true;
+                    handleModalidadChange(savedProgress.modalidad);
+                }
+                if (savedProgress.sincronia) {
+                    document.querySelector(`input[name="sincronia"][value="${savedProgress.sincronia}"]`).checked = true;
+                }
+
+                updateProgress();
+            });
+        }
+
+        function startNewSession(skipModal = false, callback) {
+            if (!skipModal) {
+                 hideConfirmationModal(true);
+            }
+            localStorage.removeItem('dnc-progress-' + supervisorGlobal.RUT);
+            
+            const supervisedEmployees = allEmployees.filter(e => e['Rut Evaluador'] === supervisorGlobal.RUT && e.RUT !== supervisorGlobal.RUT);
+            document.getElementById('supervisor-info').innerHTML = `Evaluando como: <span class="font-semibold">${supervisorGlobal['Nombre completo']}</span>`;
+            displayEmployees(supervisedEmployees);
+
+            if (typeof callback === 'function') {
+                callback();
+            }
+
+            document.getElementById('employee-list-section').classList.remove('hidden');
+            document.getElementById('supervisor-login').classList.add('hidden');
+        }
+        
+        function showRestoreModal() {
+            const modal = document.getElementById('restore-modal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('.modal-content').classList.remove('scale-95');
+            }, 10);
+        }
+
+        // --- LÓGICA DEL MODAL DE CURSOS ---
+        function showCoursesModal() {
+            const modal = document.getElementById('courses-modal');
+            document.getElementById('course-search-input').value = '';
+            filterCourses();
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('.modal-content').classList.remove('scale-95');
+            }, 10);
+        }
+        
+        function filterCourses() {
+            const input = document.getElementById('course-search-input');
+            const filter = (input.value || '').toUpperCase();
+            const listContainer = document.getElementById('courses-modal-list');
+            listContainer.innerHTML = '';
+
+            if (!Array.isArray(allCourses) || allCourses.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500">No hay cursos disponibles para mostrar.</p>';
+                return;
+            }
+
+            const filteredCourses = allCourses.filter(courseObj => {
+                const textToSearch = `${courseObj.nombre || ''} ${courseObj.competencia || ''} ${courseObj.descripcion || ''}`.toUpperCase();
+                return textToSearch.includes(filter);
+            });
+
+            if (filteredCourses.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500">No se encontraron cursos que coincidan con la búsqueda.</p>';
+                return;
+            }
+            
+            const table = document.createElement('table');
+            table.className = 'w-full text-sm text-left';
+            const thead = `<thead><tr class="border-b"><th class="py-2 pr-2 font-semibold">Curso</th><th class="py-2 px-2 font-semibold">Competencia</th><th class="py-2 pl-2 font-semibold">Descripción</th></tr></thead>`;
+            const tbody = document.createElement('tbody');
+
+            filteredCourses.forEach(courseObj => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b';
+                tr.innerHTML = `
+                    <td class="py-2 pr-2 font-medium">${courseObj.nombre || ''}</td>
+                    <td class="py-2 px-2 text-gray-600">${courseObj.competencia || 'General'}</td>
+                    <td class="py-2 pl-2 text-gray-500">${courseObj.descripcion || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            table.innerHTML = thead;
+            table.appendChild(tbody);
+            listContainer.appendChild(table);
+        }
+
+
+        function hideCoursesModal() {
+            const modal = document.getElementById('courses-modal');
+            modal.classList.add('opacity-0');
+            modal.querySelector('.modal-content').classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+        
+        function exportCoursesPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const today = new Date().toLocaleDateString('es-CL');
+            let y = 20;
+
+            const addHeader = (docInstance) => {
+                docInstance.setFontSize(18);
+                docInstance.text("Catálogo de Cursos DNC - Soft Skills 2026", 105, 15, { align: 'center' });
+                docInstance.setFontSize(8);
+                docInstance.text(`Fecha de Emisión: ${today}`, 196, 22, { align: 'right'});
+                docInstance.setLineWidth(0.5);
+                docInstance.line(14, 25, 196, 25);
+            };
+
+            const addFooter = (docInstance) => {
+                const pageCount = docInstance.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    docInstance.setPage(i);
+                    docInstance.setFontSize(8);
+                    docInstance.setTextColor(150);
+                    const footerText = `Elaborado por: David Linares | GP Strategies`;
+                    docInstance.text(footerText, 14, 287);
+                    docInstance.text(`Página ${i} de ${pageCount}`, 196, 287, { align: 'right' });
+                }
+            };
+            
+            addHeader(doc);
+            y = 35;
+
+            doc.setFontSize(10);
+            
+            allCourses.forEach(courseObj => {
+                const nameText = `• ${courseObj.nombre} (Competencia: ${courseObj.competencia || 'General'})`;
+                const descText = `  Descripción: ${courseObj.descripcion || 'No disponible.'}`;
+
+                const nameLines = doc.splitTextToSize(nameText, 180);
+                const descLines = doc.splitTextToSize(descText, 175);
+                const requiredHeight = (nameLines.length * 5) + (descLines.length * 4) + 6;
+
+                if (y > 270 - requiredHeight) {
+                    doc.addPage();
+                    addHeader(doc);
+                    y = 35;
+                }
+
+                doc.setFont(undefined, 'bold');
+                doc.text(nameLines, 14, y);
+                y += (nameLines.length * 5) + 1;
+
+                doc.setFont(undefined, 'italic');
+                doc.setTextColor(100);
+                doc.text(descLines, 16, y);
+                y += (descLines.length * 4) + 8;
+                doc.setTextColor(0);
+            });
+
+            addFooter(doc);
+            
+            doc.save('Catalogo_Cursos_DNC_Siemens_2026.pdf');
+        }
+        
+        function showSaveToast() {
+            const toast = document.getElementById('save-toast');
+            toast.classList.remove('opacity-0');
+            clearTimeout(saveToastTimeout);
+            saveToastTimeout = setTimeout(() => {
+                toast.classList.add('opacity-0');
+            }, 2000); // Ocultar después de 2 segundos
+        }
+
+    </script>
+</body>
+</html>
+

@@ -91,19 +91,21 @@
                 
                 <!-- Panel de Instrucciones -->
                 <div class="bg-blue-50 border-l-4 border-blue-500 text-blue-800 p-4 rounded-r-lg mb-8" role="alert">
-                    <h3 class="font-bold text-lg mb-2">Siemens - Proceso DNC para el año 2026</h3>
+                    <h3 class="font-bold text-lg mb-2">Siemens — Detección de Necesidades de Capacitación (DNC) 2026</h3>
                     <p class="mb-2 text-sm">
-                        Bienvenido/a al proceso DNC, una herramienta clave para potenciar a nuestros equipos. Su objetivo es identificar las competencias que ayudarán a cada colaborador a cerrar brechas y alcanzar su máximo potencial.
+                        La Detección de Necesidades de Capacitación permite identificar competencias críticas, cerrar brechas y orientar el desarrollo para 2026. Este tema debe abordarse en las Growth Talks con cada integrante del equipo.
                     </p>
                     <p class="mb-2 text-sm">
-                        La selección de cursos que realices es clave para el plan de desarrollo de este año. Por ello, es fundamental que te reúnas con cada miembro de tu equipo. Antes de la reunión, te recomendamos invitar a tu colaborador a realizar una autoevaluación y reflexionar sobre las áreas en las que le gustaría desarrollarse.
+                        Periodo de respuesta: del 3 al 10 de noviembre de 2025
+Registra en la app las competencias priorizadas y los cursos acordados, alineados con los objetivos 2026.
                     </p>
                      <p class="font-semibold text-sm">
-                        Tu rol en este diálogo es fundamental para el éxito del programa.
+                        Importante: Estas capacitaciones se complementan con la oferta formativa de My Learning World
+
                     </p>
                 </div>
 
-                <h2 class="text-xl font-semibold mb-4 text-center border-t pt-8">Paso 1: Identificación del Supervisor</h2>
+                <h2 class="text-xl font-semibold mb-4 text-center border-t pt-8">Paso 1: Identificación del Manager</h2>
                 <div class="text-center mb-6">
                      <button onclick="showCoursesModal()" class="bg-white text-blue-600 font-semibold py-2 px-4 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
                         Ver Catálogo de Cursos
@@ -283,6 +285,7 @@
         let allEmployees = [];
         let allCourses = [];
         let saveToastTimeout;
+        let lastSubmissionData = null; // Variable para guardar los datos del último envío
 
         document.addEventListener('DOMContentLoaded', fetchInitialData);
 
@@ -371,7 +374,7 @@
                 errorMessage.innerHTML = '';
 
                 if (!supervisor) {
-                    errorMessage.innerHTML = 'RUT no encontrado. Por favor, verifique que esté bien escrito o contacte a Learning Siemens al correo <a href="mailto:david.linares.etx@siemens.com" class="text-blue-600 underline">david.linares.etx@siemens.com</a>.';
+                    errorMessage.innerHTML = 'RUT no encontrado. Por favor, verifique que esté bien escrito o contacte a Learning Siemens al correo <a href="mailto:david.linares.ext@siemens.com" class="text-blue-600 underline">david.linares.ext@siemens.com</a>.';
                 } else {
                     supervisorGlobal = supervisor;
                     const supervisedEmployees = allEmployees.filter(e => e['Rut Evaluador'] === supervisor.RUT && e.RUT !== supervisor.RUT);
@@ -644,138 +647,6 @@
             });
         }
         
-        function generatePDF() {
-            if (!window.jsPDF) {
-                alert("jsPDF no cargó. Revisa el <script> de jsPDF o bloqueadores.");
-                return;
-            }
-            if (!lastSubmissionData) {
-                alert("No hay datos de envío para generar el PDF.");
-                return;
-            }
-
-            const doc = new window.jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(0);
-
-            const today = new Date().toLocaleDateString('es-CL');
-            let y = 20;
-
-            const { supervisor, evaluations } = lastSubmissionData;
-
-            // Encabezado
-            doc.setFontSize(18);
-            doc.text("Resumen DNC - Soft Skills", 105, y, { align: 'center' });
-            y += 10;
-
-            doc.setFontSize(12);
-            doc.text(`Supervisor: ${supervisor.nombre} (RUT: ${supervisor.rut})`, 14, y);
-            doc.text(`Fecha: ${today}`, 196, y, { align: 'right'});
-            y += 10;
-
-            doc.setLineWidth(0.5);
-            doc.line(14, y, 196, y);
-            y += 10;
-
-            // Preferencias generales
-            doc.setFontSize(12);
-            doc.setFont(undefined, 'bold');
-            doc.text("Preferencias Generales de Capacitación", 14, y); y += 8;
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'normal');
-            const modalidad = supervisor.modalidad || "No especificado";
-            doc.text(`- Modalidad: ${modalidad}`, 20, y); y += 6;
-            if (modalidad === 'Virtual') {
-                const sincronia = supervisor.sincronia || "No especificado";
-                doc.text(`- Formato Virtual: ${sincronia}`, 20, y); y += 6;
-            }
-            y += 4;
-
-            // Detalle por colaborador
-            const addIfNeeded = (need) => { if (y > need) { doc.addPage(); y = 20; } };
-
-            if (evaluations) {
-                evaluations.forEach(e => {
-                const { nombre, noCourses, curso1, curso2, curso3, justificacion } = e;
-
-                let required = 20;
-                if (justificacion && justificacion.trim()) {
-                    required += (doc.splitTextToSize(justificacion, 170).length * 4) + 2;
-                }
-                [curso1, curso2, curso3].forEach(c => {
-                    if (c) {
-                    const co = allCourses.find(k => k.nombre === c);
-                    if (co && co.descripcion) {
-                        required += (doc.splitTextToSize(co.descripcion, 165).length * 4) + 2;
-                    }
-                    }
-                });
-                addIfNeeded(280 - required);
-
-                doc.setLineWidth(0.2);
-                doc.line(14, y, 196, y); y += 10;
-
-                doc.setFontSize(12);
-                doc.setFont(undefined, 'bold');
-                doc.text(`Colaborador: ${nombre}`, 14, y); y += 8;
-
-                doc.setFontSize(10);
-                doc.setFont(undefined, 'normal');
-
-                if (noCourses) {
-                    doc.text(`- No se asignaron cursos para este ciclo.`, 20, y); y += 6;
-                } else {
-                    [curso1, curso2, curso3].forEach((c, i) => {
-                    if (c) {
-                        doc.setFont(undefined, 'bold');
-                        doc.text(`- Prioridad ${i+1}: ${c}`, 20, y); y += 5;
-                        const co = allCourses.find(k => k.nombre === c);
-                        if (co && co.descripcion) {
-                        doc.setFont(undefined, 'italic');
-                        doc.setTextColor(100);
-                        const d = doc.splitTextToSize(co.descripcion, 165);
-                        doc.text(d, 25, y);
-                        y += (d.length * 4) + 2;
-                        doc.setTextColor(0);
-                        doc.setFont(undefined, 'normal');
-                        }
-                    }
-                    });
-                }
-
-                if (justificacion && justificacion.trim()) {
-                    y += 2;
-                    doc.setFont(undefined, 'bold');
-                    doc.text(`Justificación:`, 20, y); y += 5;
-                    doc.setFont(undefined, 'italic');
-                    const jt = doc.splitTextToSize(justificacion, 170);
-                    doc.text(jt, 25, y);
-                    y += (jt.length * 4) + 2;
-                    doc.setFont(undefined, 'normal');
-                }
-                y += 6;
-                });
-            }
-
-            const general = (supervisor.observaciones || '').trim();
-            if (general) {
-                if (y > 250) { doc.addPage(); y = 20; }
-                doc.setLineWidth(0.5);
-                doc.line(14, y, 196, y); y += 10;
-                doc.setFontSize(12);
-                doc.setFont(undefined, 'bold');
-                doc.text("Observaciones Generales", 14, y); y += 8;
-                doc.setFontSize(10);
-                doc.setFont(undefined, 'normal');
-                const gt = doc.splitTextToSize(general, 170);
-                doc.text(gt, 20, y);
-            }
-
-            const safeName = (supervisor.nombre || '').replace(/\s/g, '_');
-            const fileName = `DNC_Resumen_${safeName}_${today}.pdf`;
-            doc.save(fileName);
-        }
-        
         function handleModalidadChange(value) {
             const sincroniaSection = document.getElementById('sincronia-section');
             if (value === 'Virtual') {
@@ -911,7 +782,8 @@
                 return textToSearch.includes(filter);
             });
 
-            if (filteredCourses.length === 0) {
+            if (filteredCourses.length === 0)
+            {
                 listContainer.innerHTML = '<p class="text-gray-500">No se encontraron cursos que coincidan con la búsqueda.</p>';
                 return;
             }
@@ -1021,4 +893,3 @@
     </script>
 </body>
 </html>
-
